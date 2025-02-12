@@ -8,6 +8,8 @@ using UnityEngine;
 public class AvatarController : NetworkBehaviour {
     [SerializeField] private float movementSpeed = 3.0f;
     [SerializeField] private GameObject doorPrefab;
+    
+    
     private readonly List<Color> m_Colors = new List<Color>() { Color.blue , Color.green, Color.red};
     private SpriteRenderer m_Renderer;
     private static NetworkVariable<Vector3> m_Position = new NetworkVariable<Vector3>(Vector3.zero, 
@@ -18,6 +20,7 @@ public class AvatarController : NetworkBehaviour {
     // Start is called before the first frame update
     void Start()
     {
+
         SmartConsole.Log($"ClientId {OwnerClientId}");
         if (OwnerClientId > 2)
         {
@@ -67,6 +70,10 @@ public class AvatarController : NetworkBehaviour {
         m_Position.Value += Vector3.right + Vector3.up;
         door.GetComponent<NetworkObject>().Spawn();
     }
+
+
+
+        
 
     
     // [ServerRpc(RequireOwnership = false)]
