@@ -10,8 +10,8 @@ public class CommandHelper : MonoBehaviour
     void StartHost()
     {
         NetworkManager.Singleton.StartHost();
-        GameObject detector = GameObject.Find("Detectors");
-        detector.SetActive(true);
+        GameObject detectors = GameObject.Find("Detectors");
+        detectors.SetActive(true);
     }
     [Command]
     void StartClient()
