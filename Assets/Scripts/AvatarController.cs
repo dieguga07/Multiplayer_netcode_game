@@ -32,6 +32,20 @@ public class AvatarController : NetworkBehaviour {
         // assign initial color to network variable
         if(IsOwner) m_Color.Value = m_Colors[(int) OwnerClientId];
         //ChangeColorServerRpc(m_Colors[(int) OwnerClientId]);
+
+        gameObject.tag = "Player";
+        Debug.Log($"Player tag assigned: {gameObject.tag}");
+
+        // Verificar si el jugador tiene un Collider2D
+        Collider2D collider = GetComponent<Collider2D>();
+        if (collider != null)
+        {
+            Debug.Log($"Collider2D found on {gameObject.name}. Is Trigger: {collider.isTrigger}");
+        }
+        else
+        {
+            Debug.Log($"No Collider2D found on {gameObject.name}");
+        }
     }
 
     // Update is called once per frame
