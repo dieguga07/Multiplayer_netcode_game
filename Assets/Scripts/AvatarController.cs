@@ -1,20 +1,21 @@
-using System.Collections;
+using System;
 using System.Collections.Generic;
 using ED.SC;
-using Unity.Mathematics;
 using Unity.Netcode;
 using UnityEngine;
 
 public class AvatarController : NetworkBehaviour {
     [SerializeField] private float movementSpeed = 3.0f;
     [SerializeField] private GameObject doorPrefab;
+    private bool doorOpen = false;
     private readonly List<Color> m_Colors = new List<Color>() { Color.blue , Color.green, Color.red};
     private SpriteRenderer m_Renderer;
-    private static NetworkVariable<Vector3> m_Position = new NetworkVariable<Vector3>(Vector3.zero, 
+    private static NetworkVariable<Vector3> m_Position = new NetworkVariable<Vector3>(Vector3.zero, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
+    private NetworkVariable<Color> m_Color = new NetworkVariable<Color>(Color.black, NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
+    public static NetworkVariable<int> btnCounter = new NetworkVariable<int>(0, 
         NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Server);
-    private NetworkVariable<Color> m_Color = new NetworkVariable<Color>(Color.black, 
-        NetworkVariableReadPermission.Everyone, NetworkVariableWritePermission.Owner);
-
+    
+    
     // Start is called before the first frame update
     void Start()
     {
@@ -25,47 +26,38 @@ public class AvatarController : NetworkBehaviour {
             Destroy(gameObject);
             return;
         }
-        // player id defines player position
         transform.position += Vector3.right * 2 * OwnerClientId;
-        // get component for color change
         m_Renderer = GetComponent<SpriteRenderer>();
-        // assign initial color to network variable
-        if(IsOwner) m_Color.Value = m_Colors[(int) OwnerClientId];
-        //ChangeColorServerRpc(m_Colors[(int) OwnerClientId]);
+        if (IsOwner) m_Color.Value = m_Colors[(int) OwnerClientId];
 
-        gameObject.tag = "Player";
-        Debug.Log($"Player tag assigned: {gameObject.tag}");
-
-        // Verificar si el jugador tiene un Collider2D
-        Collider2D collider = GetComponent<Collider2D>();
-        if (collider != null)
-        {
-            Debug.Log($"Collider2D found on {gameObject.name}. Is Trigger: {collider.isTrigger}");
-        }
-        else
-        {
-            Debug.Log($"No Collider2D found on {gameObject.name}");
-        }
+        if (IsOwner) m_Color.Value = m_Colors[(int) OwnerClientId];
     }
 
     // Update is called once per frame
     void Update() {
-        // sets color to network variable value
         if (m_Renderer.color != m_Color.Value) m_Renderer.color = m_Color.Value;
-        
+
         if (!IsOwner) return;
         
-        // movement
         if (Input.GetKey(KeyCode.LeftArrow)) LerpPosition(Vector3.left, movementSpeed);
         if (Input.GetKey(KeyCode.RightArrow)) LerpPosition(Vector3.right, movementSpeed);
         if (Input.GetKey(KeyCode.UpArrow)) LerpPosition(Vector3.up, movementSpeed);
         if (Input.GetKey(KeyCode.DownArrow)) LerpPosition(Vector3.down, movementSpeed);
-        
-        // color change
-        // if you need to change something not in transform, it's needed RPC calling
-        // RPC calling executes the method in several clients (specified by RpcTarget)
-        // if (Input.GetKeyDown(KeyCode.RightControl)) m_Color.Value = m_Colors[2];
-        if (Input.GetKeyDown(KeyCode.RightControl)) SpawnDoorServerRpc();
+
+        if (btnCounter.Value == 3) {
+            SpawnDoorServerRpc();
+        }
+    }
+    
+    [ServerRpc]
+    void IncrementBtnCounterServerRpc(bool increment)
+    {
+        if (increment)
+            btnCounter.Value += 1;
+        else
+            btnCounter.Value -= 1;
+
+        Debug.Log($"btnCounter actualizado: {btnCounter.Value} por {gameObject.name}");
     }
 
     void LerpPosition(Vector3 offset, float speed) {
@@ -76,23 +68,27 @@ public class AvatarController : NetworkBehaviour {
     [ServerRpc(RequireOwnership = false)]
     void SpawnDoorServerRpc()
     {
-        SmartConsole.Log("spawn door");
-        GameObject door = Instantiate(doorPrefab, m_Position.Value, Quaternion.identity);
-        m_Position.Value += Vector3.right + Vector3.up;
-        door.GetComponent<NetworkObject>().Spawn();
+        if (!doorOpen)
+        {
+            SmartConsole.Log("spawn door");
+            GameObject door = Instantiate(doorPrefab, m_Position.Value, Quaternion.identity);
+            m_Position.Value += Vector3.right + Vector3.up;
+            door.GetComponent<NetworkObject>().Spawn();
+            doorOpen = true;
+        }
     }
 
-    
-    // [ServerRpc(RequireOwnership = false)]
-    // void ChangeColorServerRpc(Color newColor)
-    // {
-    //     ChangeColorClientRpc(newColor);
-    // }
-    //
-    // [ClientRpc]
-    // void ChangeColorClientRpc(Color newColor)
-    // {
-    //     SmartConsole.Log($"New color {newColor}");
-    //     if(m_Renderer!=null) m_Renderer.color = newColor;
-    // }
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        IncrementBtnCounterServerRpc(true);
+        Debug.Log($"btnCounter incrementado: {btnCounter} por {gameObject.name}");
+        
+    }
+
+    private void OnTriggerExit2D(Collider2D other)
+    {
+        IncrementBtnCounterServerRpc(false);
+        Debug.Log($"btnCounter decrementado: {btnCounter} por {gameObject.name}");
+        
+    }
 }
